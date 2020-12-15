@@ -1,0 +1,167 @@
+---
+title: "Project 3 Code"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+install.packages("ggpubr")
+install.packages("ordPens")
+install.packages("caret")
+library(caret)
+install.packages("mlbench")
+library(mlbench)
+library(ggplot2) 
+library(ggpubr)
+library(ordPens)
+
+setwd("Downloads")
+ed <- read.csv("Education.csv")
+not_na_continuum <- is.na(ed$X2013.Rural.urban.Continuum.Code)
+not_na_lhs <- is.na(ed$Percent.of.adults.with.less.than.a.high.school.diploma..2014.18)
+not_na_hs <- is.na(ed$Percent.of.adults.with.a.high.school.diploma.only..2014.18)
+not_na_somec <- is.na(ed$Percent.of.adults.completing.some.college.or.associate.s.degree..2014.18)
+not_na_col <- is.na(ed$Percent.of.adults.with.a.bachelor.s.degree.or.higher..2014.18)
+
+ed <- ed[!not_na_lhs & !not_na_hs & !not_na_somec & !not_na_col & !not_na_continuum,]
+
+ed_weighted <- ed
+
+ed_weighted[,"Percent.of.adults.with.a.bachelor.s.degree.or.higher..2014.18"] <- ed_weighted[,"Percent.of.adults.with.a.bachelor.s.degree.or.higher..2014.18"]*4/100
+
+ed_weighted[,"Percent.of.adults.completing.some.college.or.associate.s.degree..2014.18"] <-  ed_weighted[,"Percent.of.adults.completing.some.college.or.associate.s.degree..2014.18"]*3/100
+
+ed_weighted[,"Percent.of.adults.with.a.high.school.diploma.only..2014.18"] <- ed_weighted[,"Percent.of.adults.with.a.high.school.diploma.only..2014.18"]*2/100
+
+ed_weighted["Percent.of.adults.with.less.than.a.high.school.diploma..2014.18"] <- ed_weighted["Percent.of.adults.with.less.than.a.high.school.diploma..2014.18"]/100
+
+sum <- ed_weighted[,"Percent.of.adults.with.a.bachelor.s.degree.or.higher..2014.18"]+ed_weighted[,"Percent.of.adults.completing.some.college.or.associate.s.degree..2014.18"]+ed_weighted[,"Percent.of.adults.with.a.high.school.diploma.only..2014.18"]+ed_weighted[,"Percent.of.adults.with.less.than.a.high.school.diploma..2014.18"]
+
+ed_weighted$sum <- sum
+
+for(i in 1:3221) {
+  if(ed_weighted[i,]$sum > 3.2) {
+    print(ed_weighted[i,]$X2013.Urban.Influence.Code)
+    print(ed_weighted[i,]$Area.name)
+  }
+}
+
+res.aov <- aov(sum ~ X2013.Rural.urban.Continuum.Code, data=ed_weighted)
+summary(res.aov)
+ggplot(ed_weighted, aes(x=factor(X2013.Rural.urban.Continuum.Code),y=sum))+geom_boxplot()
+ggplot(ed_weighted, aes(x=factor(X2013.Rural.urban.Continuum.Code),y=Percent.of.adults.with.a.high.school.diploma.only..2014.18+Percent.of.adults.with.less.than.a.high.school.diploma..2014.18))+geom_boxplot()
+cor.test(x=ed_weighted$X2013.Rural.urban.Continuum.Code,y=ed_weighted$sum,method="spearman")
+cor.test(x=ed_weighted$X2013.Rural.urban.Continuum.Code,y=ed_weighted$Percent.of.adults.with.a.bachelor.s.degree.or.higher..2014.18,method="spearman")
+
+code_1 <- ed_weighted[ed_weighted$X2013.Rural.urban.Continuum.Code == 1,]
+code_2 <- ed_weighted[ed_weighted$X2013.Rural.urban.Continuum.Code == 2,]
+code_3 <- ed_weighted[ed_weighted$X2013.Rural.urban.Continuum.Code == 3,]
+code_4 <- ed_weighted[ed_weighted$X2013.Rural.urban.Continuum.Code == 4,]
+code_5 <- ed_weighted[ed_weighted$X2013.Rural.urban.Continuum.Code == 5,]
+code_6 <- ed_weighted[ed_weighted$X2013.Rural.urban.Continuum.Code == 6,]
+code_7 <- ed_weighted[ed_weighted$X2013.Rural.urban.Continuum.Code == 7,]
+code_8 <- ed_weighted[ed_weighted$X2013.Rural.urban.Continuum.Code == 8,]
+code_9 <- ed_weighted[ed_weighted$X2013.Rural.urban.Continuum.Code == 9,]
+
+m1 <- mean(code_1$sum)
+m2 <-mean(code_2$sum)
+m3 <-mean(code_3$sum)
+m4 <-mean(code_4$sum)
+m5 <-mean(code_5$sum)
+m6 <-mean(code_6$sum)
+m7 <-mean(code_7$sum)
+m8 <-mean(code_8$sum)
+m9 <-mean(code_9$sum)
+
+sum_means <- c(m1,m2,m3,m4,m5,m6,m7,m8,m9)
+codes <- c(1,2,3,4,5,6,7,8,9)
+plot(codes,sum_means)
+
+ru_code <- ed_weighted$X2013.Rural.urban.Continuum.Code
+bachelors <- ed_weighted$Percent.of.adults.with.a.bachelor.s.degree.or.higher..2014.18
+s <- ed_weighted$sum
+n <- lm(s ~ ru_code + I(ru_code^2))
+summary(n)
+plot(ru_code,predict(n))
+
+code_4 <- ed_weighted[ed_weighted$X2013.Rural.urban.Continuum.Code == 4,]
+adjacent_to_metro <-  ed_weighted[ed_weighted$X2013.Rural.urban.Continuum.Code %in% c(4,6,8),]
+m1 <- lm(sum~X2013.Rural.urban.Continuum.Code, data = adjacent_to_metro)
+summary(m1)
+plot(m1)
+ggplot(adjacent_to_metro, aes(x=factor(X2013.Rural.urban.Continuum.Code),y=sum))+geom_boxplot()
+nonmetro <- ed_weighted[ed_weighted$X2013.Rural.urban.Continuum.Code >= 4,]
+nonmetro$adjacent <- nonmetro$X2013.Rural.urban.Continuum.Code %in% c(4,6,8)
+nonmetro$size <- 1
+nonmetro$size[nonmetro$X2013.Rural.urban.Continuum.Code %in% c(6,7)] <- 2
+nonmetro$size[nonmetro$X2013.Rural.urban.Continuum.Code %in% c(4,5)] <- 3
+m2 <- lm(sum ~ size * adjacent, data = nonmetro)
+summary(m2)
+ggplot(nonmetro, aes(x = size, y = sum, colour = adjacent)) +geom_smooth(method = "lm")
+with(nonmetro,plot(X2013.Rural.urban.Continuum.Code,sum))
+abline(m2)
+
+metro <- ed_weighted[ed_weighted$X2013.Rural.urban.Continuum.Code <= 3,]
+metro$size <- 1
+metro$size[metro$ru_code %in% c(2)] <- 2
+metro$size[metro$ru_code %in% c(3)] <- 3
+met <- lm(sum ~ X2013.Rural.urban.Continuum.Code, data=metro)
+
+plot(met)
+summary(met)
+ggplot(metro,aes(x=size,y=sum))+geom_smooth(method="lm")
+
+with(metro,plot(X2013.Rural.urban.Continuum.Code,sum))
+abline(met)
+
+set.seed(100)
+trainIndMetro <- createDataPartition(metro$sum,p=.8,list=FALSE)
+trainSet <- metro[trainIndMetro,]
+testSet <- metro[-trainIndMetro,]
+lm1 <- train(sum~.,data=metro,method="lm")
+
+set.seed(100)
+nonmet_cols <- nonmetro[,c("Area.name","X2013.Rural.urban.Continuum.Code","sum")]
+nonmet_adj <- nonmet_cols[nonmet_cols$X2013.Rural.urban.Continuum.Code %in% c(4,6,8),]
+fitControl <- trainControl(method="repeatedcv",number=10,repeats=10)
+model <- train(sum ~ X2013.Rural.urban.Continuum.Code,data=nonmet_adj,method="lm",trControl=fitControl,metric="RMSE")
+model
+
+predictions <- predict(model,nonmet_adj)
+nonmet_adj$predicted <- predictions[]
+model_results <- lm(nonmet_adj$predicted~nonmet_adj$sum)
+plot(nonmet_adj$X2013.Rural.urban.Continuum.Code,nonmet_adj$predicted-nonmet_adj$sum)
+residuals <- lm(nonmet_adj$predicted-nonmet_adj$sum~nonmet_adj$X2013.Rural.urban.Continuum.Code)
+plot(residuals)
+ggplot(data=nonmet_adj,aes(x=factor(X2013.Rural.urban.Continuum.Code),y=predicted-sum))+geom_smooth(method = "lm")
+plot(nonmet_adj$X2013.Rural.urban.Continuum.Code,nonmet_adj$predicted-nonmet_adj$sum)
+abline(lm(nonmet_adj$predicted-nonmet_adj$sum~nonmet_adj$X2013.Rural.urban.Continuum.Code),col="red")
+resids <- lm(nonmet_adj$predicted-nonmet_adj$sum~nonmet_adj$X2013.Rural.urban.Continuum.Code)
+summary(resids)
+summary(model_results)
+
+caret::RMSE(nonmet_adj$predicted,nonmet_adj$sum)
+
+set.seed(100)
+
+
+```
+
+## R n
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
